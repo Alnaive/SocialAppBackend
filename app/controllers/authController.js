@@ -131,7 +131,7 @@ exports.signout = async (req, res) => {
     }
   };
 
-exports.forgotPassword = async function (req, res) {
+exports.forgotPassword = async (req, res) => {
   const { email } = req.body
   
   const user = await User.findOne({ email });
@@ -140,37 +140,49 @@ exports.forgotPassword = async function (req, res) {
            message: "Email not found."
      });
    }
-  // Step 2 - Generate a verification token with the user's ID
-  const verificationToken = jwt.sign({ id: user.id }, config.secret, {
-   expiresIn: 86400 // 24 hours
+  const resetVerificationToken = jwt.sign({ id: user.id }, config.secret, {
+   expiresIn: '1d'
  });
-  await user.updateOne({resetPasswordToken: verificationToken})
+  await user.updateOne({resetPasswordToken: resetVerificationToken})
 
-  // Step 3 - Email the user a unique verification link
-  const url = `http://localhost:8000/api/auth/reset/${verificationToken}`
+  const url = `http://localhost:8000/api/auth/reset/${resetVerificationToken}`
   transporter.sendMail({
     to: email,
     subject: 'Reset Password',
     html: `Click <a href = '${url}'>here</a> to confirm your email.`
   })
   return res.status(201).send({
-    message: `Sent a verification email to ${email}`
+    message: `Link reset send to ${email}`
   });
 }
 
-exports.resetPassword = async function (req, res ){
+exports.resetPassword = async (req, res ) => {
   const { token, password } = req.body;
-  const user = await User.findOne({resetPasswordToken: token});
-  if(user){
-    user.password = req.body.password;
-    await user.save
-    return res.status(201).json({
-      message: 'Your password has been reset'
+
+  if(!token){
+    return res.status(403).send({
+      message:'missing token'
     })
   }
-  console.log('token', token,);
-  console.log('password', password,);
-
-  
-
+   // Verify the token from the URL
+   let payload = null
+   try {
+       payload = jwt.verify(
+          token,
+          config.secret
+       );
+   } catch (err) {
+       return res.status(500).send(err);
+   }
+   try{
+       // Find user token
+       const user = await User.findOne({ resetPasswordToken: token }).exec();
+       user.password = password;
+       await user.save();
+       return res.status(200).send({
+             message: "Your password has been reset"
+       });
+    } catch (err) {
+       return res.status(500).send(err);
+    }
 }

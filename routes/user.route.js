@@ -36,6 +36,8 @@
     router.put('/update/:id', user.update);
     router.delete('/delete/:id', user.delete);
 
-   
+    router.post('/sendVerify', user.sendEmailVerification);
+    router.post('/verify/:id', user.verifyEmail);
+
     module.exports = router;
     // app.use('/api/user', router);

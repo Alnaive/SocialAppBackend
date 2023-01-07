@@ -22,6 +22,6 @@ router.use(function(req, res, next) {
 
   router.post("/signin", controller.signin);
   router.post("/signout", controller.signout);
-router.put("/forgot", controller.forgotPassword);
-router.put("/reset", controller.resetPassword);
+router.post("/forgot", controller.forgotPassword);
+router.post("/reset/:id", controller.resetPassword);
 module.exports = router;

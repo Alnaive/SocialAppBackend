@@ -21,6 +21,11 @@ module.exports = mongoose => {
             ref: "Role"
           }
         ],
+        verified: {
+          type: Boolean,
+          required: true,
+          default: false
+        },
         resetPasswordToken: {
           type: String,
           default: '',
