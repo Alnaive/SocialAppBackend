@@ -1,11 +1,11 @@
 const express = require("express");
 const cors = require("cors");
-const cookieSession = require("cookie-session");
+const cron = require('node-cron');
 
 const app = express();
 
 var corsOptions = {
-    origin : "http://localhost:8000"
+    origin : ["http://localhost:8000", "http://localhost:5173", "https://enter-mate.vercel.app/"]
 };
 
 app.use(cors(corsOptions));
@@ -15,13 +15,6 @@ app.use(express.json());
 
 app.use(express.urlencoded({ extended:true }));
 
-app.use(
-    cookieSession({
-      name: "entermate-session",
-      secret: "adsd123asf235454oijdlkf", // should use as secret environment variable
-      httpOnly: true
-    })
-  );
 
 const db = require("./app/models/index.js");
 const Role = db.role;
@@ -42,13 +35,20 @@ app.get("/", (req,res) => {
     res.json({message: "hello word"});
 });
 
+const Post = require('./app/models/posts.js');
+// Delete soft deleted posts older than one month every day at midnight
+cron.schedule('0 0 * * *', async () => {
+    const oneMonthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // 30 days ago
+    await Post.deleteOne({ is_deleted: true, deleted_at: { $lte: oneMonthAgo } });
+  });
+
 const userRoute = require('./routes/user.route.js');
 const authRoute = require('./routes/auth.route.js');
-const threadRoute = require('./routes/thread.route.js');
+const profileRoute = require('./routes/profile.route.js');
 
 app.use("/api/user/", userRoute);
 app.use("/api/auth/", authRoute);
-app.use("/api/thread/", threadRoute);
+app.use("/api/profile/", profileRoute);
 // port
 const PORT = 8000;
 app.listen(PORT, (req, res) => {

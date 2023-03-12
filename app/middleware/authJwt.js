@@ -4,12 +4,12 @@ const db = require("../models");
 const User = db.user;
 const Role = db.role;
 
-verifyToken = (req, res, next) => {
-  let token = req.session.token;
-//   let token = req.headers["x-access-token"];
 
+verifyToken = (req, res, next) => {
+  let token = req.headers["x-access-token"];
+  // let token = req.session.token
   if (!token) {
-    return res.status(403).send({ message: "No token provided!" });
+    return res.status(403).send({ message: "Access denied. No token provided." });
   }
 
   jwt.verify(token, config.secret, (err, decoded) => {

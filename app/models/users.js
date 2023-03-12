@@ -2,34 +2,60 @@ const bcrypt = require('bcryptjs');
 var jwt = require("jsonwebtoken");
 require('dotenv').config();
 const config = require("../config/auth.js");
+const validator = require('validator');
 
 module.exports = mongoose => {
-    var schema = mongoose.Schema(
+  var schema = mongoose.Schema(
       {
         username: {
           type: String,
           unique: true
         },
+        name: {
+          type: String,
+          required: true
+        },
         email:{
           type: String,
-          unique: true
+          unique: true,
+          default: null,
+          validate: [validator.isEmail, 'Invalid email address']
         },
-        password: String,
+        image: {
+          type: String,
+          default: null,
+        },
+        password: {
+          type: String,
+          required: true,
+        },
         roles: [
           {
             type: mongoose.Schema.Types.ObjectId,
             ref: "Role"
           }
         ],
+        isPrivate: {
+          type: Boolean,
+          default: false
+        },
         verified: {
           type: Boolean,
           required: true,
           default: false
         },
+        isOnline: {
+          type: Boolean,
+          default: false
+        },
+        isReal: {
+          type: Boolean,
+          default: false
+        },
         resetPasswordToken: {
           type: String,
-          default: '',
-        }
+          default: null,
+        },
       },
       { timestamps: true }
     );
@@ -41,6 +67,14 @@ module.exports = mongoose => {
       return object;
     });
 
+    
+    schema.virtual('passwordConfirmation')
+    .get(function() {
+      return this._passwordConfirmation;
+    })
+    .set(function(value) {
+        this._passwordConfirmation = value;
+    });
 // hashing password
     schema.pre('save', async function (next) {
       try {
@@ -53,7 +87,12 @@ module.exports = mongoose => {
           return next(err);
       }
     });
-   
+
+    schema.pre('findOneAndUpdate', async function () {
+      this._update.password = await bcrypt.hash(this._update.password, 10)
+    })
+    
+    
     const User = mongoose.models.user || mongoose.model("user", schema);
     return User;
   };

@@ -3,9 +3,12 @@ const config = require("../config/auth.js");
 const db = require("../models");
 const User = db.user;
 const Role = db.role;
+const Profile = db.profile;
+const About = db.about;
+const validator = require('validator');
 
-var jwt = require("jsonwebtoken");
-var bcrypt = require('bcryptjs');
+const jwt = require("jsonwebtoken");
+const bcrypt = require('bcryptjs');
 const nodemailer = require('nodemailer');
 
 const transporter = nodemailer.createTransport({
@@ -16,66 +19,62 @@ const transporter = nodemailer.createTransport({
     },
 });
 
-exports.signup = (req, res) => {
-  const user = new User({
-    username: req.body.username,
-    email: req.body.email,
-    password: req.body.password,
-});
+exports.signup = async (req, res) => {
+  const { username, name, email, password, passwordConfirmation, title, city, birtday, nationality, hobby, about, roles } = req.body;
 
-  user.save((err, user) => {
-    if (err) {
-      res.status(500).send({ message: err });
-      return;
-    }
+  // Validate password length
+  if (!validator.isLength(password && passwordConfirmation, { min: 8, max: 30 })) {
+    return res.status(400).json({ error: 'Password should be at least 8 characters and max 30 characters.' });
+  }
 
-    if (req.body.roles) {
-      Role.find(
-        {
-          name: { $in: req.body.roles }
-        },
-        (err, roles) => {
-          if (err) {
-            res.status(500).send({ message: err });
-            return;
-          }
+  // Validate matching passwords
+  if (password !== passwordConfirmation) {
+    return res.status(400).json({ message: 'Password does not match.' });
+  }
 
-          user.roles = roles.map(role => role._id);
-          user.save(err => {
-            if (err) {
-              res.status(500).send({ message: err });
-              return;
-            }
+  // Create user and profile
+  try {
+    const user = new User({ username, name, email, password });
+    const profile = new Profile({ owner: user.id, title, city, birtday, nationality, hobby });
+    const about = new About({ owner: user.id });
+    await user.save();
+    await profile.save();
+    await about.save();
 
-            res.send({ message: "User was registered successfully!" });
-          });
-        }
-      );
+    // Assign roles
+    const roleIds = [];
+    if (roles) {
+      const foundRoles = await Role.find({ name: { $in: roles } });
+      roleIds = foundRoles.map(role => role._id);
     } else {
-      Role.findOne({ name: "user" }, (err, role) => {
-        if (err) {
-          res.status(500).send({ message: err });
-          return;
-        }
-
-        user.roles = [role._id];
-        user.save(err => {
-          if (err) {
-            res.status(500).send({ message: err });
-            return;
-          }
-
-          res.send({ message: "User was registered successfully!" });
-        });
-      });
+      const foundRole = await Role.findOne({ name: 'user' });
+      roleIds.push(foundRole._id);
     }
-  });
+    user.roles = roleIds;
+    await user.save();
+
+    // Generate and return JWT token
+    const token = jwt.sign({ id: user._id }, config.secret, { expiresIn: 86400 });
+    return res.status(200).json({
+      auth: true,
+      id: user.id,
+      username,
+      email,
+      accessToken: token,
+      message: 'User was registered successfully!'
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error });
+  }
 };
+
 
 exports.signin = (req, res) => {
   User.findOne({
-    username: req.body.username
-  })
+    $or: [
+      {username: req.body.username},
+      {email: req.body.email}
+  ]  })
     .populate("roles", "-__v")
     .exec((err, user) => {
       if (err) {
@@ -109,15 +108,12 @@ exports.signin = (req, res) => {
         authorities.push("ROLE_" + user.roles[i].name.toUpperCase());
       }
 
-      // using cookies
-      req.session.token = token;
-
       res.status(200).send({
-        id: user._id,
+        id: user.id,
         username: user.username,
         email: user.email,
         roles: authorities,
-        // accessToken: token
+        accessToken: token
       });
     });
 };

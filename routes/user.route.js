@@ -29,11 +29,13 @@
         [authJwt.verifyToken, authJwt.isAdmin],
         user.adminBoard
       );
-    router.get('/', user.index);
-    router.get('/:id', user.findId);
+    router.get('/', [authJwt.verifyToken], user.index);
+    router.get('/find', user.findUser);
+    router.get('/profile/:username', user.showUser);
+    router.get('/authUser', user.authUser);
     router.post('/add/role', role.create);
-    router.post('/create', user.create);
-    router.put('/update/:id', user.update);
+    router.put('/updateProfile/:id', [authJwt.verifyToken], user.updateUser);
+    router.put('/updatePassword/:id', [authJwt.verifyToken], user.updatePassword);
     router.delete('/delete/:id', user.delete);
 
     router.post('/sendVerify', user.sendEmailVerification);
@@ -41,3 +43,4 @@
 
     module.exports = router;
     // app.use('/api/user', router);
+ 
