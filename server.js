@@ -5,7 +5,8 @@ const cron = require('node-cron');
 const app = express();
 
 var corsOptions = {
-    origin : ["http://localhost:8000", "http://localhost:5173", "https://enter-mate.vercel.app/"]
+    origin : ["http://localhost:8000", "http://localhost:5173", "https://enter-mate.vercel.app/"],
+    allowedHeaders: ["x-access-token", "Content-Type"]
 };
 
 app.use(cors(corsOptions));
